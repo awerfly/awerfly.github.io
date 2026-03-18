@@ -252,7 +252,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 1rem;
+      gap: 1.5rem;
       width: 100%;
       animation-delay: 0.7s;
     }
@@ -361,6 +361,27 @@
     }
     .dot-tooltip.visible {
       opacity: 1;
+    }
+
+    /* ── Laptop / short viewport — fit in one screen ── */
+    @media (max-height: 820px) and (min-width: 601px) {
+      body {
+        height: 100svh;
+        overflow: hidden;
+      }
+      .page {
+        padding: 1.2rem 1rem 1.8rem;
+        height: 100svh;
+        justify-content: center;
+      }
+      .title-wrap  { margin-bottom: 1rem; }
+      .days-hero   { margin-bottom: 1.2rem; }
+      .days-big    { font-size: clamp(6rem, 12vw, 8rem); }
+      .days-word   { font-size: 1.3rem; }
+      .hms-row     { margin-bottom: 1.6rem; }
+      .hms-val     { font-size: clamp(1.8rem, 3vw, 2.4rem); }
+      .hms-sep     { font-size: clamp(1.8rem, 3vw, 2.4rem); }
+      .grid-section { gap: 1rem; }
     }
 
     /* ── Mobile — everything in one screen ── */
