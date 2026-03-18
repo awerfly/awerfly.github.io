@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Countdown</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Onest:wght@200;300;400;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; width: 100%; overflow-x: hidden; }
+
+    body {
+      font-family: 'Onest', sans-serif;
+      background: #090909;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+    }
+
+    /* ── Dot grid texture ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 32px 32px;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ── Film grain ── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      background-size: 180px 180px;
+      opacity: 0.45;
+      z-index: 0;
+      pointer-events: none;
+      mix-blend-mode: overlay;
+    }
+
+    /* ── Slow aurora gradient blobs ── */
+    .aurora {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      pointer-events: none;
+      z-index: 0;
+      will-change: transform, opacity;
+    }
+    .aurora-1 {
+      width: 600px;
+      height: 600px;
+      top: -15%;
+      left: -10%;
+      background: radial-gradient(circle, rgba(240,160,80,0.07) 0%, rgba(200,100,50,0.03) 50%, transparent 70%);
+      animation: auroraFloat1 20s ease-in-out infinite;
+    }
+    .aurora-2 {
+      width: 500px;
+      height: 500px;
+      bottom: -10%;
+      right: -8%;
+      background: radial-gradient(circle, rgba(240,180,100,0.05) 0%, rgba(180,120,60,0.02) 50%, transparent 70%);
+      animation: auroraFloat2 25s ease-in-out infinite;
+    }
+    .aurora-3 {
+      width: 450px;
+      height: 450px;
+      top: 40%;
+      left: 50%;
+      background: radial-gradient(circle, rgba(255,200,140,0.04) 0%, rgba(200,140,80,0.015) 50%, transparent 70%);
+      animation: auroraFloat3 30s ease-in-out infinite;
+    }
+
+    @keyframes auroraFloat1 {
+      0%, 100% { transform: translate(0, 0) scale(1); opacity: 1; }
+      33%      { transform: translate(80px, 60px) scale(1.15); opacity: 0.7; }
+      66%      { transform: translate(-40px, 30px) scale(0.9); opacity: 1; }
+    }
+    @keyframes auroraFloat2 {
+      0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.8; }
+      40%      { transform: translate(-70px, -50px) scale(1.2); opacity: 1; }
+      70%      { transform: translate(30px, -20px) scale(0.85); opacity: 0.6; }
+    }
+    @keyframes auroraFloat3 {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+      50%      { transform: translate(calc(-50% + 60px), calc(-50% - 40px)) scale(1.3); opacity: 1; }
+    }
+
+
+    /* Particle canvas */
+    #particles-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+
+    /* Mouse-reactive glow */
+    #mouseGlow {
+      position: fixed;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(240,160,80,0.05) 0%, rgba(240,160,80,0.015) 40%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+      transform: translate(-50%, -50%);
+      transition: left 0.15s ease-out, top 0.15s ease-out;
+      will-change: left, top;
+    }
+
+    /* Page layout */
+    .page {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 4rem;
+      width: 100%;
+      max-width: 720px;
+    }
+
+    /* Entrance animations */
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .entrance {
+      opacity: 0;
+      animation: fadeSlideUp 0.6s ease-out forwards;
+    }
+
+    /* Title */
+    .title-wrap {
+      text-align: center;
+      margin-bottom: 2.8rem;
+      animation-delay: 0.1s;
+    }
+    .title-text {
+      font-size: 0.8rem;
+      font-weight: 400;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.5);
+    }
+
+    /* Days hero */
+    .days-hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.1rem;
+      margin-bottom: 2.4rem;
+      animation-delay: 0.3s;
+      position: relative;
+    }
+
+    /* Warm glow behind the number */
+    .days-hero::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 320px;
+      height: 200px;
+      background: radial-gradient(ellipse, rgba(240,160,80,0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .days-big {
+      font-weight: 200;
+      font-size: clamp(8rem, 20vw, 16rem);
+      line-height: 0.9;
+      color: #fff;
+      letter-spacing: -0.03em;
+    }
+    .days-word {
+      font-weight: 600;
+      font-size: 1.6rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.5);
+    }
+
+    /* HMS row */
+    .hms-row {
+      display: flex;
+      gap: 1.2rem;
+      align-items: center;
+      margin-bottom: 3.2rem;
+      animation-delay: 0.5s;
+    }
+
+    .hms-sep {
+      font-weight: 200;
+      font-size: clamp(2rem, 4.5vw, 3.2rem);
+      color: rgba(255,255,255,0.25);
+      margin-bottom: 1.1rem;
+    }
+
+    .hms-unit {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .hms-val {
+      font-weight: 300;
+      font-size: clamp(2rem, 4.5vw, 3.2rem);
+      line-height: 1;
+      color: rgba(255,255,255,0.9);
+      transition: transform 0.15s ease-out;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum";
+    }
+    .hms-val.pulse {
+      transform: scale(1.05);
+    }
+
+    .hms-lbl {
+      font-size: 0.65rem;
+      font-weight: 300;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      min-width: 6.5em;
+      text-align: center;
+    }
+
+    /* Grid section */
+    .grid-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      width: 100%;
+      animation-delay: 0.7s;
+    }
+
+    #daysGrid {
+      display: grid;
+      grid-template-columns: repeat(26, 1fr);
+      gap: 4px;
+      width: 100%;
+      max-width: 620px;
+    }
+
+    .day-dot {
+      aspect-ratio: 1;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      /* wave entrance */
+      opacity: 0;
+      animation: dotIn 0.3s ease-out forwards;
+    }
+    @keyframes dotIn {
+      from { opacity: 0; transform: scale(0.5); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    .day-dot:hover { transform: scale(1.6); z-index: 2; }
+
+    .day-dot.passed {
+      background: #1a1a1a;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .day-dot.remaining {
+      background: rgba(240,160,80,0.4);
+    }
+    .day-dot.today {
+      background: #F0A050;
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(240,160,80,0.8);
+      animation: dotIn 0.3s ease-out forwards, todayPulse 2s ease-in-out infinite;
+    }
+    @keyframes todayPulse {
+      0%,100% { box-shadow: 0 0 8px rgba(240,160,80,0.7); }
+      50%     { box-shadow: 0 0 20px rgba(240,160,80,1); }
+    }
+
+    /* ── Target dot — July 26 destination beacon ── */
+    .day-dot.target {
+      background: radial-gradient(circle at 38% 35%, #FFE090, #F5B830 55%, #D4880A);
+      border: none;
+      border-radius: 50%;
+      animation: dotIn 0.3s ease-out forwards, targetBeacon 2s ease-in-out infinite;
+    }
+    /* When today happens to land on the target date */
+    .day-dot.today.target {
+      background: radial-gradient(circle at 38% 35%, #FFE090, #F5B830 55%, #D4880A);
+      border: none;
+      border-radius: 50%;
+      animation: dotIn 0.3s ease-out forwards, targetBeacon 2s ease-in-out infinite;
+    }
+    @keyframes targetBeacon {
+      0%   { box-shadow: 0 0  5px rgba(255,215, 80,0.50), 0 0 10px rgba(245,180, 40,0.22), 0 0 20px rgba(240,160, 30,0.08); }
+      25%  { box-shadow: 0 0  8px rgba(255,225,100,0.65), 0 0 18px rgba(245,190, 60,0.32), 0 0 34px rgba(240,160, 40,0.13); }
+      50%  { box-shadow: 0 0 12px rgba(255,230,110,0.85), 0 0 26px rgba(250,200, 70,0.45), 0 0 48px rgba(245,170, 40,0.18); }
+      75%  { box-shadow: 0 0  8px rgba(255,225,100,0.65), 0 0 18px rgba(245,190, 60,0.32), 0 0 34px rgba(240,160, 40,0.13); }
+      100% { box-shadow: 0 0  5px rgba(255,215, 80,0.50), 0 0 10px rgba(245,180, 40,0.22), 0 0 20px rgba(240,160, 30,0.08); }
+    }
+
+    /* Legend */
+    .grid-legend {
+      display: flex;
+      gap: 1.8rem;
+      align-items: center;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.65rem;
+      font-weight: 300;
+      letter-spacing: 0.12em;
+      color: rgba(255,255,255,0.45);
+      text-transform: uppercase;
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+
+    /* Tooltip */
+    .dot-tooltip {
+      position: fixed;
+      padding: 0.35rem 0.7rem;
+      background: #1a1a1a;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      font-family: 'Onest', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 300;
+      color: rgba(255,255,255,0.7);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.12s;
+      z-index: 100;
+      white-space: nowrap;
+    }
+    .dot-tooltip.visible {
+      opacity: 1;
+    }
+
+    /* ── Mobile — everything in one screen ── */
+    @media (max-width: 600px) {
+      body {
+        height: 100svh;
+        overflow: hidden;
+      }
+
+      .page {
+        padding: 1rem 1rem 1.5rem;
+        height: 100svh;
+        justify-content: center;
+      }
+
+      /* Tighter title */
+      .title-wrap { margin-bottom: 0.9rem; }
+      .title-text  { font-size: 0.85rem; letter-spacing: 0.28em; }
+
+      /* Big number */
+      .days-hero   { margin-bottom: 0.8rem; }
+      .days-big    { font-size: clamp(6rem, 22vw, 7.5rem); letter-spacing: -0.02em; }
+      .days-word   { font-size: 1.4rem; letter-spacing: 0.2em; }
+
+      /* HMS */
+      .hms-row     { gap: 0.5rem; margin-bottom: 1rem; }
+      .hms-sep     { font-size: 1.6rem; margin-bottom: 0.85rem; }
+      .hms-val     { font-size: 2rem; }
+      .hms-lbl     { font-size: 0.6rem; min-width: 5.5em; letter-spacing: 0.16em; }
+
+      /* Grid — fewer, bigger columns */
+      .grid-section { gap: 0.55rem; }
+      #daysGrid {
+        grid-template-columns: repeat(17, 1fr);
+        gap: 3px;
+      }
+
+      /* Legend */
+      .grid-legend  { gap: 0.75rem; flex-wrap: wrap; justify-content: center; }
+      .legend-item  { font-size: 0.52rem; gap: 0.28rem; }
+      .legend-dot   { width: 8px; height: 8px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Background layers -->
+<div class="aurora aurora-1"></div>
+<div class="aurora aurora-2"></div>
+<div class="aurora aurora-3"></div>
+<canvas id="particles-canvas"></canvas>
+
+<div id="mouseGlow"></div>
+
+<div class="page">
+  <div class="title-wrap entrance">
+    <div class="title-text">До зустрічі:</div>
+  </div>
+
+  <div class="days-hero entrance">
+    <span class="days-big" id="daysNum">&mdash;</span>
+    <span class="days-word" id="daysWord">Днів</span>
+  </div>
+
+  <div class="hms-row entrance">
+    <div class="hms-unit">
+      <span class="hms-val" id="hoursVal">00</span>
+      <span class="hms-lbl" id="hoursLbl">годин</span>
+    </div>
+    <span class="hms-sep">:</span>
+    <div class="hms-unit">
+      <span class="hms-val" id="minsVal">00</span>
+      <span class="hms-lbl" id="minsLbl">хвилин</span>
+    </div>
+    <span class="hms-sep">:</span>
+    <div class="hms-unit">
+      <span class="hms-val" id="secsVal">00</span>
+      <span class="hms-lbl" id="secsLbl">секунд</span>
+    </div>
+  </div>
+
+  <div class="grid-section entrance">
+    <div id="daysGrid"></div>
+    <div class="grid-legend">
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#1a1a1a;border:1px solid rgba(255,255,255,0.05)"></div>
+        пройшло
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#F0A050;border-radius:50%;box-shadow:0 0 8px rgba(240,160,80,0.8)"></div>
+        сьогодні
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:rgba(240,160,80,0.4)"></div>
+        залишилось
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:radial-gradient(circle at 38% 35%,#FFE090,#F5B830 55%,#D4880A);border-radius:50%;box-shadow:0 0 7px rgba(255,210,80,0.6),0 0 16px rgba(255,185,60,0.3)"></div>
+        зустріч
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip" class="dot-tooltip"></div>
+
+<script>
+  const TARGET     = new Date("2026-07-26T00:00:00+03:00"); // Europe/Kyiv (EEST = UTC+3 in July)
+  const GRID_START = new Date("2026-02-05T00:00:00+02:00"); // Europe/Kyiv (EET = UTC+2 in February)
+  const TOTAL_DAYS = Math.round((TARGET - GRID_START) / 86400000);
+
+  // Build grid
+  const grid    = document.getElementById('daysGrid');
+  const tooltip = document.getElementById('tooltip');
+  const dots    = [];
+
+  for (let i = 0; i <= TOTAL_DAYS; i++) {
+    const d = document.createElement('div');
+    d.className = 'day-dot';
+    d.dataset.idx = i;
+    d.style.animationDelay = (i * 8) + 'ms';
+    grid.appendChild(d);
+    dots.push(d);
+  }
+
+  function formatDate(d) {
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function getDotDate(i) {
+    return new Date(GRID_START.getTime() + i * 86400000);
+  }
+
+  // Tooltip via event delegation
+  grid.addEventListener('mousemove', function(e) {
+    const dot = e.target.closest('.day-dot');
+    if (!dot) { tooltip.classList.remove('visible'); return; }
+    const idx = parseInt(dot.dataset.idx);
+    tooltip.textContent = formatDate(getDotDate(idx));
+    tooltip.classList.add('visible');
+    const rect = dot.getBoundingClientRect();
+    tooltip.style.left = (rect.left + rect.width / 2 - tooltip.offsetWidth / 2) + 'px';
+    tooltip.style.top  = (rect.top - 32) + 'px';
+  });
+  grid.addEventListener('mouseleave', function() {
+    tooltip.classList.remove('visible');
+  });
+
+  // Mouse glow
+  const glow = document.getElementById('mouseGlow');
+  document.addEventListener('mousemove', function(e) {
+    glow.style.left = e.clientX + 'px';
+    glow.style.top  = e.clientY + 'px';
+  });
+
+  // HMS pulse tracking
+  let prevH = -1, prevM = -1, prevS = -1;
+  const pad = n => String(Math.floor(n)).padStart(2, '0');
+
+  const hoursEl   = document.getElementById('hoursVal');
+  const minsEl    = document.getElementById('minsVal');
+  const secsEl    = document.getElementById('secsVal');
+  const daysEl    = document.getElementById('daysNum');
+  const daysWord  = document.getElementById('daysWord');
+  const hoursLbl  = document.getElementById('hoursLbl');
+  const minsLbl   = document.getElementById('minsLbl');
+  const secsLbl   = document.getElementById('secsLbl');
+
+  // Ukrainian grammatical forms: [однина, лічильна, множина]
+  // Rule: 11–19 → множина; остання цифра 1 → однина; 2–4 → лічильна; решта → множина
+  function uk(n, one, few, many) {
+    const t = Math.abs(n) % 100;
+    const d = Math.abs(n) % 10;
+    if (t >= 11 && t <= 19) return many;
+    if (d === 1) return one;
+    if (d >= 2 && d <= 4) return few;
+    return many;
+  }
+
+  function pulseEl(el) {
+    el.classList.add('pulse');
+    setTimeout(() => el.classList.remove('pulse'), 150);
+  }
+
+  function update() {
+    const now  = Date.now();
+    const left = TARGET - now;
+
+    const todayIdx = Math.floor((now - GRID_START) / 86400000);
+
+    // Update dots
+    dots.forEach((dot, i) => {
+      const isTarget = (i === TOTAL_DAYS);
+      let cls;
+      if      (i < todayIdx)   cls = 'passed';
+      else if (i === todayIdx) cls = isTarget ? 'today target' : 'today';
+      else                     cls = isTarget ? 'target'       : 'remaining';
+      if (dot.className !== 'day-dot ' + cls) {
+        dot.className = 'day-dot ' + cls;
+        dot.style.animationDelay = (i * 8) + 'ms';
+      }
+    });
+
+    // Progress bar
+    const daysPassed = Math.max(0, todayIdx);
+
+    if (left <= 0) {
+      daysEl.textContent  = '0';
+      hoursEl.textContent = '00';
+      minsEl.textContent  = '00';
+      secsEl.textContent  = '00';
+      return;
+    }
+
+    const daysLeft = Math.ceil(left / 86400000);
+    daysEl.textContent  = daysLeft;
+    daysWord.textContent = uk(daysLeft, 'День', 'Дні', 'Днів');
+
+    const totalSecs = Math.floor(left / 1000);
+    const s = totalSecs % 60;
+    const m = Math.floor(totalSecs / 60) % 60;
+    const h = Math.floor(totalSecs / 3600) % 24;
+
+    hoursEl.textContent = pad(h);
+    minsEl.textContent  = pad(m);
+    secsEl.textContent  = pad(s);
+
+    hoursLbl.textContent = uk(h, 'година', 'години', 'годин');
+    minsLbl.textContent  = uk(m, 'хвилина', 'хвилини', 'хвилин');
+    secsLbl.textContent  = uk(s, 'секунда', 'секунди', 'секунд');
+
+    if (s !== prevS) pulseEl(secsEl);
+    if (m !== prevM) pulseEl(minsEl);
+    if (h !== prevH) pulseEl(hoursEl);
+
+    prevH = h; prevM = m; prevS = s;
+  }
+
+  update();
+  setInterval(update, 1000);
+</script>
+
+<!-- Floating warm particles -->
+<script>
+(function() {
+  const canvas = document.getElementById('particles-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+  const particles = [];
+  const COUNT = 40;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+
+  for (let i = 0; i < COUNT; i++) {
+    particles.push({
+      x: rand(0, W),
+      y: rand(0, H),
+      r: rand(0.8, 2.5),
+      vx: rand(-0.12, 0.12),
+      vy: rand(-0.2, -0.04),
+      alpha: rand(0.15, 0.5),
+      phase: rand(0, Math.PI * 2),
+      freq: rand(0.006, 0.018),
+      warmth: rand(0, 1) // 0 = white, 1 = amber
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    const t = performance.now() / 1000;
+
+    for (const p of particles) {
+      const flicker = 0.5 + 0.5 * Math.sin(p.phase + t * p.freq * 60);
+      const a = p.alpha * flicker;
+      const r = Math.round(255);
+      const g = Math.round(200 + p.warmth * 40);
+      const b = Math.round(180 - p.warmth * 80);
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${r},${g},${b},${a})`;
+      ctx.fill();
+
+      // Subtle glow halo on larger particles
+      if (p.r > 1.6) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(240,160,80,${a * 0.08})`;
+        ctx.fill();
+      }
+
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Gentle horizontal drift oscillation
+      p.x += Math.sin(t * 0.3 + p.phase) * 0.05;
+
+      if (p.y < -10) { p.y = H + 10; p.x = rand(0, W); }
+      if (p.x < -10) p.x = W + 10;
+      if (p.x > W + 10) p.x = -10;
+    }
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+</script>
+</body>
+</html>
